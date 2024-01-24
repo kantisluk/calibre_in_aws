@@ -1,14 +1,14 @@
 terraform {
   required_providers {
     aws = {
-      source = "hashicorp/aws"
+      source  = "hashicorp/aws"
       version = "5.33.0"
     }
   }
 }
 
 provider "aws" {
-	region = "eu-north-1"
+  region = "eu-north-1"
 }
 
 resource "aws_vpc" "vpc" {
@@ -41,7 +41,7 @@ resource "aws_route_table_association" "rta_subnet_public" {
 }
 
 resource "aws_eip" "ip_test_env" {
-  instance = "${aws_spot_instance_request.calibre.spot_instance_id}"
+  instance = aws_spot_instance_request.calibre.spot_instance_id
   domain   = "vpc"
 
 }
@@ -63,7 +63,7 @@ resource "aws_security_group" "calibre" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-  
+
   ingress {
     description = "EFS mount target"
     from_port   = 2049
@@ -91,26 +91,26 @@ resource "aws_efs_file_system" "library" {
 }
 
 resource "aws_efs_mount_target" "library" {
-  file_system_id = aws_efs_file_system.library.id
-  subnet_id      = aws_subnet.subnet_public.id
+  file_system_id  = aws_efs_file_system.library.id
+  subnet_id       = aws_subnet.subnet_public.id
   security_groups = [aws_security_group.calibre.id]
 }
 data "template_file" "user_data" {
-  template = file("./scripts/cloud_init.yaml") 
+  template = file("./scripts/cloud_init.yaml")
   vars = {
-  file_system_id = aws_efs_file_system.library.id
-  efs_mount_point = var.efs_mount_point
-}
+    file_system_id  = aws_efs_file_system.library.id
+    efs_mount_point = var.efs_mount_point
+  }
 }
 resource "aws_spot_instance_request" "calibre" {
-  ami           = "ami-0014ce3e52359afbd"
-  instance_type = "t3.medium"
-  subnet_id                   = aws_subnet.subnet_public.id
-  vpc_security_group_ids      = [aws_security_group.calibre.id]
-  key_name = "calibre"
-  wait_for_fulfillment = true
-  user_data = data.template_file.user_data.rendered
-  depends_on = [aws_efs_mount_target.library]
+  ami                    = "ami-0014ce3e52359afbd"
+  instance_type          = "t3.medium"
+  subnet_id              = aws_subnet.subnet_public.id
+  vpc_security_group_ids = [aws_security_group.calibre.id]
+  key_name               = "calibre"
+  wait_for_fulfillment   = true
+  user_data              = data.template_file.user_data.rendered
+  depends_on             = [aws_efs_mount_target.library]
   tags = {
     Name = "Calibre Backend"
   }
