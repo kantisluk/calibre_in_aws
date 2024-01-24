@@ -7,6 +7,7 @@ packages:
   - libopengl0
   - libxcb-cursor0
   - xvfb
+  - nfs-common
 write_files:
   -  path: /run/nginx/default
      owner: root:root
@@ -24,7 +25,6 @@ write_files:
                   proxy_set_header        Host            $http_host;
                   proxy_set_header        X-Forwarded-For $proxy_add_x_forwarded_for;
                   proxy_set_header        X-Scheme        $scheme;
-                  # proxy_set_header        X-Script-Name   /;  # -> this is wrong in the wiki, I'll update it
               }
 
           server_name _;
@@ -33,12 +33,14 @@ write_files:
 runcmd:
 
   - mkdir -p /calibre
-  - mkdir -p /calibre-library
+  - mkdir -p ${efs_mount_point}
+  - echo '${file_system_id}:/ ${efs_mount_point} nfs _netdev,tls 0 0' >> /etc/fstab
+  - mount ${efs_mount_point}
   - wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin install_dir=/calibre
   - pip install calibreweb
   - mv /run/nginx/default /etc/nginx/sites-enabled/default
   - systemctl reload nginx
   - wget https://www.africau.edu/images/default/sample.pdf
-  - xvfb-run calibredb add sample.pdf --library-path /calibre-library 
+  - xvfb-run calibredb add sample.pdf --library-path /${efs_mount_point} 
   - nohup cps 
 

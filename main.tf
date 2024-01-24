@@ -45,8 +45,8 @@ resource "aws_eip" "ip_test_env" {
   domain   = "vpc"
 
 }
-resource "aws_security_group" "sg_22_80" {
-  name   = "sg_22"
+resource "aws_security_group" "calibre" {
+  name   = "calibre"
   vpc_id = aws_vpc.vpc.id
 
   # SSH access from the VPC
@@ -63,7 +63,14 @@ resource "aws_security_group" "sg_22_80" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
-
+  
+  ingress {
+    description = "EFS mount target"
+    from_port   = 2049
+    to_port     = 2049
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   ingress {
     from_port   = 8080
@@ -79,17 +86,31 @@ resource "aws_security_group" "sg_22_80" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 }
+
+resource "aws_efs_file_system" "library" {
+}
+
+resource "aws_efs_mount_target" "library" {
+  file_system_id = aws_efs_file_system.library.id
+  subnet_id      = aws_subnet.subnet_public.id
+  security_groups = [aws_security_group.calibre.id]
+}
 data "template_file" "user_data" {
   template = file("./scripts/cloud_init.yaml") 
+  vars = {
+  file_system_id = aws_efs_file_system.library.id
+  efs_mount_point = var.efs_mount_point
+}
 }
 resource "aws_spot_instance_request" "calibre" {
   ami           = "ami-0014ce3e52359afbd"
   instance_type = "t3.medium"
   subnet_id                   = aws_subnet.subnet_public.id
-  vpc_security_group_ids      = [aws_security_group.sg_22_80.id]
+  vpc_security_group_ids      = [aws_security_group.calibre.id]
   key_name = "calibre"
   wait_for_fulfillment = true
-  user_data = data.template_file.user_data.rendered 
+  user_data = data.template_file.user_data.rendered
+  depends_on = [aws_efs_mount_target.library]
   tags = {
     Name = "Calibre Backend"
   }
