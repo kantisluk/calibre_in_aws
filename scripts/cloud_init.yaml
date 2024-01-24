@@ -3,7 +3,10 @@
 packages:
   - pip
   - nginx
-
+  - libegl1
+  - libopengl0
+  - libxcb-cursor0
+  - xvfb
 write_files:
   -  path: /run/nginx/default
      owner: root:root
@@ -30,9 +33,12 @@ write_files:
 runcmd:
 
   - mkdir -p /calibre
-  - sudo -v && wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sudo sh /dev/stdin install_dir=/calibre
+  - mkdir -p /calibre-library
+  - wget -nv -O- https://download.calibre-ebook.com/linux-installer.sh | sh /dev/stdin install_dir=/calibre
   - pip install calibreweb
-  - nohup cps
   - mv /run/nginx/default /etc/nginx/sites-enabled/default
   - systemctl reload nginx
+  - wget https://www.africau.edu/images/default/sample.pdf
+  - xvfb-run calibredb add sample.pdf --library-path /calibre-library 
+  - nohup cps 
 
